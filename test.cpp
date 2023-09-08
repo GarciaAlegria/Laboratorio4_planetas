@@ -20,7 +20,6 @@ const int WINDOW_HEIGHT = 500;
 
 std::array<std::array<float, WINDOW_WIDTH>, WINDOW_HEIGHT> zbuffer;
 
-
 SDL_Renderer* renderer;
 
 // Declare a global clearColor of type Color
@@ -33,7 +32,6 @@ Color currentColor = {255, 255, 255}; // Initially set to white
 void clear() {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
-
 
     for (auto &row : zbuffer) {
         std::fill(row.begin(), row.end(), 99999.0f);
@@ -64,10 +62,9 @@ std::vector<std::vector<Vertex>> primitiveAssembly(const std::vector<Vertex>& tr
     return groupedVertices;
 }
 
-
 void render(std::vector<glm::vec3> VBO, const Uniform& uniforms) {
     // 1. Vertex Shader
-    // vertex -> trasnformedVertices
+    // vertex -> transformedVertices
     
     std::vector<Vertex> transformedVertices(VBO.size() / 2);
 
@@ -78,7 +75,6 @@ void render(std::vector<glm::vec3> VBO, const Uniform& uniforms) {
         Vertex vertex = {v, u};
         transformedVertices.push_back(vertexShader(vertex, uniforms));
     }
-
 
     // 2. Primitive Assembly
     // transformedVertices -> triangles
@@ -103,12 +99,53 @@ void render(std::vector<glm::vec3> VBO, const Uniform& uniforms) {
 
     // 4. Fragment Shader
     // Fragments -> colors
-
     for (Fragment fragment : fragments) {
         point(fragmentShader(fragment));
+        point(moonfragmentShader(fragment));
     }
 }
 
+void render1(std::vector<glm::vec3> VBO, const Uniform& uniforms) {
+    // 1. Vertex Shader
+    // vertex -> transformedVertices
+    
+    std::vector<Vertex> transformedVertices(VBO.size() / 2);
+
+    for (int i = 0; i < VBO.size(); i+=2) {
+        glm::vec3 v = VBO[i];
+        glm::vec3 u = VBO[i+1];
+
+        Vertex vertex = {v, u};
+        transformedVertices.push_back(vertexShader(vertex, uniforms));
+    }
+
+    // 2. Primitive Assembly
+    // transformedVertices -> triangles
+    std::vector<std::vector<Vertex>> triangles = primitiveAssembly(transformedVertices);
+
+    // 3. Rasterize
+    // triangles -> Fragments
+    std::vector<Fragment> fragments;
+    for (const std::vector<Vertex>& triangleVertices : triangles) {
+        std::vector<Fragment> rasterizedTriangle = triangle(
+            triangleVertices[0],
+            triangleVertices[1],
+            triangleVertices[2]
+        );
+        
+        fragments.insert(
+            fragments.end(),
+            rasterizedTriangle.begin(),
+            rasterizedTriangle.end()
+        );
+    }
+
+    // 4. Fragment Shader
+    // Fragments -> colors
+    for (Fragment fragment : fragments) {
+        point(moonfragmentShader(fragment));
+    }
+}
 
 float a = 3.14f / 3.0f;
 
@@ -120,13 +157,18 @@ glm::mat4 createModelMatrix() {
     return transtation * scale * rotation;
 }
 
+glm::mat4 createModelMatrix1() {
+    glm::mat4 transtation = glm::translate(glm::mat4(1), glm::vec3(0.5f, 0.5f, 0.0f));
+    glm::mat4 scale = glm::scale(glm::mat4(1), glm::vec3(0.5f, 0.5f, 0.5f));
+    glm::mat4 rotation = glm::rotate(glm::mat4(1), glm::radians(a++), glm::vec3(0.0f, 1.0f, 0.0f));
+    
+    return transtation * scale * rotation;
+}
+
 glm::mat4 createViewMatrix() {
     return glm::lookAt(
-        // donde esta
         glm::vec3(0, 0, -5),
-        // hacia adonde mira
         glm::vec3(0, 0, 0),
-        // arriba
         glm::vec3(0, -20, 0)
     );
 }
@@ -143,10 +185,8 @@ glm::mat4 createProjectionMatrix() {
 glm::mat4 createViewportMatrix() {
     glm::mat4 viewport = glm::mat4(1.0f);
 
-    // Scale
     viewport = glm::scale(viewport, glm::vec3(WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f, 0.5f));
 
-    // Translate
     viewport = glm::translate(viewport, glm::vec3(1.0f, 1.0f, 0.5f));
 
     return viewport;
@@ -181,7 +221,9 @@ bool loadOBJ(const std::string& path, std::vector<glm::vec3>& out_vertices, std:
         if (lineHeader == "v")
         {
             iss >> vertex.x >> vertex.y >> vertex.z;
-            vertex *= scaleFactor;
+           
+
+                        vertex *= scaleFactor;
             out_vertices.push_back(vertex);
         }
         else if (lineHeader == "vn")
@@ -239,6 +281,7 @@ int main() {
     std::vector<Face> faces;
     std::vector<glm::vec3> vertexBufferObject;
 
+    // Cargar el archivo OBJ una sola vez
     if (loadOBJ("sphere.obj", vertices, textures, normals, faces, 1.7f)) {
         // For each face
         for (const auto& face : faces)
@@ -254,30 +297,39 @@ int main() {
         }
     }
 
-    Uniform uniforms;
+    Uniform uniformsPlanet; // Uniform para el planeta
+    Uniform uniformsMoon;   // Uniform para la luna
 
     while (running) {
-
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 running = false;
             }
         }
 
-        uniforms.model = createModelMatrix();
-        uniforms.view = createViewMatrix();
-        uniforms.projection = createProjectionMatrix();
-        uniforms.viewport = createViewportMatrix();
+        uniformsPlanet.model = createModelMatrix(); // Matriz de transformación para el planeta
+        uniformsPlanet.view = createViewMatrix();
+        uniformsPlanet.projection = createProjectionMatrix();
+        uniformsPlanet.viewport = createViewportMatrix();
 
         clear();
 
-        // Call our render function
-        render(vertexBufferObject, uniforms);
+        // Renderizar el planeta
+        render(vertexBufferObject, uniformsPlanet);
 
-        // Present the frame buffer to the screen
+        uniformsMoon.model = createModelMatrix1(); // Matriz de transformación para la luna
+        uniformsMoon.view = createViewMatrix();
+        uniformsMoon.projection = createProjectionMatrix();
+        uniformsMoon.viewport = createViewportMatrix();
+
+        // Escalar y mover la luna según sea necesario
+        //uniformsMoon.model = glm::scale(uniformsMoon.model, glm::vec3(0.7f)); // Ajusta el factor de escala según sea necesario
+        uniformsMoon.model = glm::translate(uniformsMoon.model, glm::vec3(1.0f, 1.0f, 4.0f)); // Ajusta la traslación según sea necesario
+
+        // Renderizar la luna utilizando el fragment shader moonFragmentShader
+        render1(vertexBufferObject, uniformsMoon);
+
         SDL_RenderPresent(renderer);
-
-        // Delay to limit the frame rate
         SDL_Delay(1000 / 60);
     }
 
