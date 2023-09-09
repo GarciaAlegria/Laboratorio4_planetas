@@ -1,5 +1,5 @@
 # Laboratorio 4 Gráficas Planetas
-Se utiliza SDL y glm para graficar algun archivo .obj y mostrará la luz, en nuestro caso el mono de blender
+Se utiliza SDL y glm para graficar algun archivo .obj, en nuestro caso los planetas
 # Programas usados para compilar el codigo en c++
 Se utilizo MSYS2 MINGW64 para correr el codigo de test.cpp
 # Como ejecutar el programa en MSYS2 MINGW64
