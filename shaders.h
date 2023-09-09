@@ -29,37 +29,52 @@ float rand(glm:: vec3 co) {
 }
 
 Fragment fragmentShader(Fragment& fragment) {
-    Color color;
+     Color color;
 
-    glm::vec3 baseColor = glm::vec3(0, 119, 182); // Color azul característico de Neptuno
-
-    // Añadir patrones de rayas
-    float stripePattern1 = glm::abs(glm::cos(fragment.original.y * 4.0f)) * 50.0f;
-
-    glm::vec3 tmpColor = baseColor + glm::vec3(stripePattern1);
-
-    // Agregar ruido para textura
+    glm::vec3 baseColor = glm::vec3(0.3f, 0.5f, 0.8f); // Color base del planeta
     glm::vec2 uv = glm::vec2(fragment.original.x, fragment.original.y);
 
     FastNoiseLite noiseGenerator;
     noiseGenerator.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
 
-    float ox = 900.0f;
-    float oy = 10.0f;
-    float zoom = 300.0f;
+    // Capa de textura rojiza para áreas elevadas
+    float ox1 = 1200.0f;
+    float oy1 = 3000.0f;
+    float zoom1 = 200.0f;
+    float noiseValue1 = noiseGenerator.GetNoise((uv.x + ox1) * zoom1, (uv.y + oy1) * zoom1);
+    glm::vec3 redLayer = glm::vec3(1.0f, 0.3f, 0.1f) * noiseValue1;
 
-    float noiseValue = noiseGenerator.GetNoise((uv.x + ox) * zoom, (uv.y + oy) * zoom);
+    // Capa de textura amarilla para áreas con vegetación
+    float ox2 = 800.0f;
+    float oy2 = 500.0f;
+    float zoom2 = 150.0f;
+    float noiseValue2 = noiseGenerator.GetNoise((uv.x + ox2) * zoom2, (uv.y + oy2) * zoom2);
+    glm::vec3 yellowLayer = glm::vec3(1.0f, 1.0f, 0.0f) * noiseValue2;
 
-    // Añadir ruido para mayor realismo
-    tmpColor += glm::vec3(noiseValue * 20.0f, noiseValue * 20.0f, noiseValue * 10.0f);
+    // Capa de textura verde para áreas con agua
+    float ox3 = 2000.0f;
+    float oy3 = 1000.0f;
+    float zoom3 = 100.0f;
+    float noiseValue3 = noiseGenerator.GetNoise((uv.x + ox3) * zoom3, (uv.y + oy3) * zoom3);
+    glm::vec3 greenLayer = glm::vec3(0.0f, 0.8f, 0.2f) * noiseValue3;
 
-    // Ajustar la intensidad para obtener un aspecto más suave
-    tmpColor /= 255.0f;
+    // Capa de textura blanca para áreas de nieve o hielo
+    float ox4 = 3000.0f;
+    float oy4 = 2500.0f;
+    float zoom4 = 120.0f;
+    float noiseValue4 = noiseGenerator.GetNoise((uv.x + ox4) * zoom4, (uv.y + oy4) * zoom4);
+    glm::vec3 whiteLayer = glm::vec3(0.5f, 0.5f, 0.5f) * noiseValue4;
 
-    color = Color(static_cast<int>(tmpColor.x * 255), static_cast<int>(tmpColor.y * 255), static_cast<int>(tmpColor.z * 255));
+    // Añade todas las capas de textura y variación de color
+    glm::vec3 finalColor = baseColor + redLayer + yellowLayer + greenLayer + whiteLayer;
 
-    fragment.color = color * fragment.intensity;
+    // Añade un efecto de atmósfera
+    float atmosphereFactor = 0.3f; // Controla la intensidad de la atmósfera
+    finalColor = glm::mix(finalColor, glm::vec3(0.1f, 0.1f, 0.1f), fragment.intensity * atmosphereFactor);
+
+    color = Color(static_cast<int>(finalColor.x * 255), static_cast<int>(finalColor.y * 255), static_cast<int>(finalColor.z * 255));
+
+    fragment.color = color;
 
     return fragment;
 }
-
